@@ -1,5 +1,5 @@
 {
-    "name": "wonder/php_ral",
+    "name": "william-onyejiaka/php-ral",
     "type": "library",
     "autoload": {
         "psr-4": {
