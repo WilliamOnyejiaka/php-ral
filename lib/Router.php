@@ -23,7 +23,7 @@ class Router extends BaseRouter
   
   private array $origins;
 
-  public function __construct($uri_path_start, $allow_cors, array $origins=null)
+  public function __construct($uri_path_start, $allow_cors, array $origins=[])
   {
     $this->request = new Request();
     $this->response = new Response();
@@ -64,7 +64,7 @@ class Router extends BaseRouter
   }
 
   private function setOrigins(){
-    if(isset($this->origins)){
+    if(!empty($this->origins)){
       $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 
       if (in_array($origin, $this->origins)) {
