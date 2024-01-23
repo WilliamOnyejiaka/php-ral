@@ -75,4 +75,9 @@ class Request
             $_SERVER['locals'][$key] = $value;
         }
     }
+
+    public function get_header($key)
+    {
+        return (getallheaders())[$key] ?? null;
+    }
 }

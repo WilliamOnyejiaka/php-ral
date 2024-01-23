@@ -67,4 +67,18 @@ class Response
   {
     return (getallheaders())[$key] ?? null;
   }
+
+  public function render(string $htmlPath, array $data = [], string $basePath = "./../static/templates/")
+  {
+    header("Content-Type: text/html");
+
+    ob_start();
+
+    include_once $basePath . $htmlPath;
+
+    $html_content = ob_get_clean();
+    echo $html_content;
+    exit();
+  }
+
 }
