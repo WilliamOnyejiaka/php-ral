@@ -143,6 +143,7 @@ class Router extends BaseRouter
 
     $response = new Response();
     $request = new Request();
+    header('Content-Type: application/json');
     call_user_func_array($callback, [$request, $response]);
   }
 
