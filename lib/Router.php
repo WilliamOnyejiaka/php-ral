@@ -16,7 +16,6 @@ class Router extends BaseRouter
   private $callback_405;
   private string $uri_path_start;
   private $allow_cors;
-  // private $token_configs;
 
   private Request $request;
   private Response $response;
@@ -31,7 +30,6 @@ class Router extends BaseRouter
     $this->allow_cors = $allow_cors;
     $this->uri_path_start = $uri_path_start;
     $this->origins = $origins;
-    // $this->token_configs = $token_configs;
   }
 
   public function group(Blueprint $blueprint): Router
@@ -56,19 +54,12 @@ class Router extends BaseRouter
     $blueprint_middlewares = [];
 
     if (isset($blueprint->blueprint_middlewares)) {
-      // foreach ($blueprint->blueprint_middlewares as $index => $middleware) {
-      //   $blueprint_middlewares[$index] = $middleware;
-      //   $blueprint_middlewares[$index]
-      //   $this->middlewares[$index] = $middleware;
-      //   $this->middlewares[$index]['routes'] = $route_names;
-      // }
-
       foreach ($blueprint->blueprint_middlewares as $index => $middleware) {
         $blueprint_middlewares[$index] = $middleware;
         $blueprint_middlewares[$index]['routes'] = $route_names;
       }
 
-      array_unshift($this->middlewares, $blueprint_middlewares);
+      $this->middlewares = array_merge($blueprint_middlewares, $this->middlewares);
     }
 
     return $this;
@@ -89,7 +80,6 @@ class Router extends BaseRouter
 
   private function activate_cors()
   {
-    // header('Access-Control-Allow-Origin: *');
     $this->setOrigins();
     header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
     header("Access-Control-Allow-Credentials: true");
@@ -98,7 +88,6 @@ class Router extends BaseRouter
 
     $method = $_SERVER['REQUEST_METHOD'];
     if ($method == "OPTIONS") {
-      // header('Access-Control-Allow-Origin: *');
       $this->setOrigins();
       header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method,Access-Control-Request-Headers, Authorization");
       header("HTTP/1.1 200 OK");
