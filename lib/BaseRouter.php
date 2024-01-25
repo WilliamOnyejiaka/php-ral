@@ -10,7 +10,7 @@ class BaseRouter
 {
 
     protected array $handlers;
-    protected array $middlewares;
+    protected array $middlewares = [];
 
     protected const METHOD_GET = "GET";
     protected const METHOD_POST = "POST";
