@@ -20,10 +20,10 @@ class Router extends BaseRouter
 
   private Request $request;
   private Response $response;
-  
+
   private array $origins;
 
-  public function __construct($uri_path_start, $allow_cors, array $origins=[])
+  public function __construct($uri_path_start, $allow_cors, array $origins = [])
   {
     $this->request = new Request();
     $this->response = new Response();
@@ -53,24 +53,36 @@ class Router extends BaseRouter
       }
     }
 
+    $blueprint_middlewares = [];
+
     if (isset($blueprint->blueprint_middlewares)) {
+      // foreach ($blueprint->blueprint_middlewares as $index => $middleware) {
+      //   $blueprint_middlewares[$index] = $middleware;
+      //   $blueprint_middlewares[$index]
+      //   $this->middlewares[$index] = $middleware;
+      //   $this->middlewares[$index]['routes'] = $route_names;
+      // }
+
       foreach ($blueprint->blueprint_middlewares as $index => $middleware) {
-        $this->middlewares[$index] = $middleware;
-        $this->middlewares[$index]['routes'] = $route_names;
+        $blueprint_middlewares[$index] = $middleware;
+        $blueprint_middlewares[$index]['routes'] = $route_names;
       }
 
+      array_unshift($this->middlewares, $blueprint_middlewares);
     }
+
     return $this;
   }
 
-  private function setOrigins(){
-    if(!empty($this->origins)){
+  private function setOrigins()
+  {
+    if (!empty($this->origins)) {
       $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 
       if (in_array($origin, $this->origins)) {
-          header('Access-Control-Allow-Origin: ' . $origin);
+        header('Access-Control-Allow-Origin: ' . $origin);
       }
-    }else {
+    } else {
       header('Access-Control-Allow-Origin: *');
     }
   }
