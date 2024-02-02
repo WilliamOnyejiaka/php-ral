@@ -106,6 +106,11 @@ class Model
         return $this->executeQuery($sql, $params, "insert");
     }
 
+    protected function delete(string $sql, array $params)
+    {
+        return $this->executeQuery($sql, $params, "delete");
+    }
+
     protected function queryWithParams(string $sql, array $params = null)
     {
         return $this->executeQuery($sql,$params);
