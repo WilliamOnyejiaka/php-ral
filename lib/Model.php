@@ -75,7 +75,7 @@ class Model
         return $types;
     }
 
-    protected function executeQuery(string $sql, array $params,string $queryType=null)
+    protected function executeQuery(string $sql, array $params, string $queryType = null)
     {
         try {
             $stmt = $this->connection->prepare($sql);
@@ -88,9 +88,9 @@ class Model
                 $stmt->bind_param($types, ...$params);
             }
             $this->executionError($stmt->execute() ? true : false);
-            if($queryType == "delete" || $queryType == "insert"){
-                $result = $stmt->affected_rows > 0 ;
-            }else {
+            if ($queryType == "delete" || $queryType == "insert") {
+                $result = $stmt->affected_rows > 0;
+            } else {
                 $result = $stmt->get_result();
             }
             $stmt->close();
@@ -113,7 +113,7 @@ class Model
 
     protected function queryWithParams(string $sql, array $params = null)
     {
-        return $this->executeQuery($sql,$params);
+        return $this->executeQuery($sql, $params);
     }
 
     public function close(): void
@@ -123,5 +123,10 @@ class Model
         } catch (\Exception $e) {
             die($e->getMessage());
         }
+    }
+
+    protected function sanitize(mixed $param)
+    {
+        return htmlentities(strip_tags($param));
     }
 }
