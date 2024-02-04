@@ -48,7 +48,7 @@ class Model
 
     public function dropTbl()
     {
-        $query = "DROP TABLE $this->tblName";
+        $query = "DROP TABLE IF EXISTS $this->tblName";
         return $this->connection->query($query) ? true : false;
     }
 
