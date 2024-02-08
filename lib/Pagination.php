@@ -6,34 +6,61 @@ class Pagination
 {
 
   protected $connection;
-  private $page;
-  private $results_per_page;
-  private $tbl_name;
-  private $needed_attributes;
-  private $user_id;
+  protected $page;
+  protected $results_per_page;
+  protected $needed_attributes;
+  protected string $sql;
+  protected $sqlBindParams;
 
-  public function __construct($connection, $tbl_name, $needed_attributes, $params)
+  public function __construct($connection, string $sql, $needed_attributes, $params, array $sqlBindParams = null)
   {
     $this->connection = $connection;
-    $this->tbl_name = $tbl_name;
     $this->needed_attributes = $needed_attributes;
     $this->page = !empty($params['page']) && $params['page'] >= 1 ? $params['page'] : 1;
     $this->results_per_page = !empty($params['results_per_page']) && $params['results_per_page'] >= 1 ? $params['results_per_page'] : 10;
-    $this->user_id = !empty($params['user_id']) ? $params['user_id'] : null;
+    $this->sql = $sql;
+    $this->sqlBindParams = !empty($sqlBindParams) ? $sqlBindParams : [];
+  }
+
+  private static function getParamType($param)
+  {
+    if (is_int($param)) {
+      return 'i'; // Integer
+    } elseif (is_float($param)) {
+      return 'd'; // Double
+    } elseif (is_string($param)) {
+      return 's'; // String
+    } else {
+      return 's'; // Default to string if type is unknown
+    }
+  }
+
+  protected static function getTypes(array $params): string
+  {
+    $types = '';
+    foreach ($params as $param) {
+      $types .= self::getParamType($param);
+    }
+
+    return $types;
+  }
+
+  protected function executeQuery(string $sql)
+  {
+    if (!empty($this->sqlBindParams)) {
+      $stmt = $this->connection->prepare($sql);
+      $paramTypes = self::getTypes($this->sqlBindParams);
+      $stmt->bind_param($paramTypes, ...$this->sqlBindParams);
+      $stmt->execute();
+      return $stmt->get_result();
+    }
+
+    return $this->connection->query($sql);
   }
 
   private function get_data()
   {
-    if ($this->user_id) {
-      $query = "SELECT * FROM $this->tbl_name WHERE user_id = ?";
-      $stmt = $this->connection->prepare($query);
-      $stmt->bind_param("i", $this->user_id);
-      $stmt->execute();
-      return $stmt->get_result();
-    }
-    $query = "SELECT * FROM $this->tbl_name";
-    $stmt = $this->connection->query($query);
-    return $stmt;
+    return $this->executeQuery($this->sql);
   }
 
   protected function tbl_row_length()
@@ -65,14 +92,15 @@ class Pagination
     $stmt = null;
     $result = null;
     $data = array();
-    if ($this->user_id) {
-      $query = "SELECT * FROM $this->tbl_name WHERE user_id = ? LIMIT $page_results, $this->results_per_page";
+    if (!empty($this->sqlBindParams)) {
+      $query = "$this->sql LIMIT $page_results, $this->results_per_page";
       $stmt = $this->connection->prepare($query);
-      $stmt->bind_param("i", $this->user_id);
+      $paramTypes = self::getTypes($this->sqlBindParams);
+      $stmt->bind_param($paramTypes, ...$this->sqlBindParams);
       $stmt->execute();
       $result = $stmt->get_result();
     } else {
-      $query = "SELECT * FROM $this->tbl_name LIMIT $page_results, $this->results_per_page";
+      $query = "$this->sql LIMIT $page_results, $this->results_per_page";
       $result = $this->connection->query($query);
     }
 
