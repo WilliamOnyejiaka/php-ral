@@ -75,7 +75,7 @@ class Model
         return $types;
     }
 
-    protected function executeQuery(string $sql, array $params, string $queryType = null)
+    protected function executeQuery(string $sql, array $params, bool $affectRow = false)
     {
         try {
             $stmt = $this->connection->prepare($sql);
@@ -88,7 +88,7 @@ class Model
                 $stmt->bind_param($types, ...$params);
             }
             $this->executionError($stmt->execute() ? true : false);
-            if ($queryType == "delete" || $queryType == "insert") {
+            if ($affectRow) {
                 $result = $stmt->affected_rows > 0;
             } else {
                 $result = $stmt->get_result();
@@ -101,14 +101,9 @@ class Model
         }
     }
 
-    protected function insert(string $sql, array $params)
+    protected function affectRowQuery(string $sql, array $params)
     {
-        return $this->executeQuery($sql, $params, "insert");
-    }
-
-    protected function delete(string $sql, array $params)
-    {
-        return $this->executeQuery($sql, $params, "delete");
+        return $this->executeQuery($sql, $params, true);
     }
 
     protected function queryWithParams(string $sql, array $params = null)
