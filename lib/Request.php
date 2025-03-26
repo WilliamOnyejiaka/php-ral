@@ -1,55 +1,83 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Lib;
 
 class Request
 {
-    public function json(string $key, $default = null)
+    private $body;
+
+    public $payload;
+
+    public function __construct()
     {
-        $body = json_decode(file_get_contents("php://input") ?: '{}', true);
-        return $body[$key] ?? $default;
+
     }
 
-    public function args(string $key, $default = null)
+    public function json($key, $default = null)
     {
-        return $_GET[$key] ?? $default;
+        $body = json_decode(file_get_contents("php://input"));
+        if (!empty($body->{$key})) {
+            return $body->{$key};
+        } else {
+            return $default;
+        }
     }
 
-    public function file(string $key): ?array
+
+    public function args($key, $default = null)
     {
-        return $_FILES[$key] ?? null;
+        if (isset($_GET[$key]) && !empty($_GET[$key])) {
+            return $_GET[$key];
+        }
+        return $default;
     }
 
-    public function authorization(string $type): ?string
+    public function file($key)
     {
-        return match ($type) {
-            'email' => $_SERVER['PHP_AUTH_USER'] ?? null,
-            'password' => $_SERVER['PHP_AUTH_PW'] ?? null,
-            default => null
-        };
+        if (isset($_FILES[$key])) {
+            return $_FILES[$key];
+        }
+        return null;
     }
 
-    public function redirect(string $url): void
+    public function authorization(string $name)
+    {
+        if ($name == "email") {
+            return $_SERVER['PHP_AUTH_USER'] ?? null;
+        } elseif ($name == "password") {
+            return $_SERVER['PHP_AUTH_PW'] ?? null;
+        } else {
+            return null;
+        }
+    }
+
+    public function redirect($url)
     {
         header("Location: $url");
-        exit;
+        exit();
     }
 
-    public function set_header(string $name, string $value): void
+    public function set_header($header_name, $value)
     {
-        header("$name: $value");
+        header("$header_name: $value");
     }
 
-    public function locals(string $key, $value = null)
+    public function locals($key, $value = null)
     {
-        $_SERVER['locals'] ??= [];
-        return $value === null ? ($_SERVER['locals'][$key] ?? null) : ($_SERVER['locals'][$key] = $value);
+        if (!isset($_SERVER['locals'])) {
+            $_SERVER['locals'] = [];
+        }
+
+        if (!isset($value)) {
+            return $_SERVER['locals'][$key] ?? null;
+        } else {
+            $_SERVER['locals'][$key] = $value;
+        }
     }
 
-    public function get_header(string $key): ?string
+    public function get_header($key)
     {
-        return getallheaders()[$key] ?? null;
+        return (getallheaders())[$key] ?? null;
     }
 }

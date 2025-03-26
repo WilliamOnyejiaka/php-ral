@@ -1,73 +1,99 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Lib;
+#No autoload
 
 ini_set("display_errors", 1);
-error_reporting(E_ALL);
 
 class BaseRouter
 {
-    protected array $handlers = [];
+
+    protected array $handlers;
+    protected array $middlewares = [];
+
     protected const METHOD_GET = "GET";
     protected const METHOD_POST = "POST";
     protected const METHOD_PUT = "PUT";
     protected const METHOD_PATCH = "PATCH";
     protected const METHOD_DELETE = "DELETE";
-    protected string $url_prefix = '';
+    protected string $url_prefix;
 
-    public function __construct() {
-        
+
+    public function __construct()
+    {
     }
 
-    public function get(string $path, callable $callback, ?string $name = null): self
+    public function get(string $path, $callback, string $name = null): BaseRouter
     {
-        return $this->add_handler(self::METHOD_GET, $path, $callback, $name);
+        $this->add_handler(self::METHOD_GET, $path, $callback, $name);
+        return $this;
     }
 
-    public function post(string $path, callable $callback, ?string $name = null): self
+    public function post(string $path, $callback, string $name = null): BaseRouter
     {
-        return $this->add_handler(self::METHOD_POST, $path, $callback, $name);
+        $this->add_handler(self::METHOD_POST, $path, $callback, $name);
+        return $this;
     }
 
-    public function put(string $path, callable $callback, ?string $name = null): self
+    public function put(string $path, $callback, string $name = null): BaseRouter
     {
-        return $this->add_handler(self::METHOD_PUT, $path, $callback, $name);
+        $this->add_handler(self::METHOD_PUT, $path, $callback, $name);
+        return $this;
     }
 
-    public function patch(string $path, callable $callback, ?string $name = null): self
+    public function patch(string $path, $callback, string $name = null): BaseRouter
     {
-        return $this->add_handler(self::METHOD_PATCH, $path, $callback, $name);
+        $this->add_handler(self::METHOD_PATCH, $path, $callback, $name);
+        return $this;
     }
 
-    public function delete(string $path, callable $callback, ?string $name = null): self
+    public function delete(string $path, $callback, string $name = null): BaseRouter
     {
-        return $this->add_handler(self::METHOD_DELETE, $path, $callback, $name);
+        $this->add_handler(self::METHOD_DELETE, $path, $callback, $name);
+        return $this;
     }
 
-    public function route(string|array $methods, string $path, callable $callback, ?string $name = null): self
+    public function route(string|array $methods, string $path, $callback, string $name = null): BaseRouter
     {
-        return $this->add_handler($methods, $path, $callback, $name);
+        $this->add_handler($methods, $path, $callback, $name);
+        return $this;
     }
 
-    protected function add_handler(string|array $method, string $path, callable $callback, ?string $name): self
+    private function add_handler(string|array $method, string $path, $callback, $name): void
     {
-        $index = is_array($method) ? implode(",", $method) : $method;
-        $path = rtrim($this->url_prefix . $path, '/');
+        $index = null;
+        if (is_array($method)) {
+            $index = implode(",", $method);
+        }
+
+        if (isset($this->url_prefix)) {
+            $path = $this->url_prefix . $path;
+        }
 
         $this->handlers[$index . $path] = [
             'path' => $path,
             'method' => $method,
             'callback' => $callback,
-            'name' => $name ?? uniqid(),
-            'pattern' => $this->convertToRegex($path)
+            'name' => $name
         ];
+    }
+
+    public function middleware($middleware, array|string $routes): BaseRouter
+    {
+        $this->add_middleware($middleware, $routes);
         return $this;
     }
 
-    protected function convertToRegex(string $path): string
+    private function add_middleware($middleware, array|string $routes): void
     {
-        return '#^' . preg_replace('#\{([^/]+)\}#', '(?P<$1>[^/]+)', $path) . '$#';
+        $index = null;
+        if (is_array($routes)) {
+            $index = implode(",", $routes);
+        }
+        $this->middlewares[rand(1, 20) . $index] = [
+            'routes' => $routes,
+            'middleware' => $middleware
+        ];
     }
 }

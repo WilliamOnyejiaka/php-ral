@@ -1,177 +1,258 @@
 <?php
-
 declare(strict_types=1);
-
 namespace Lib;
 
-use Exception;
+ini_set('display_errors', 1);
+
+use Lib\Response;
+use Lib\Request;
+use Lib\Blueprint;
+use Lib\BaseRouter;
 
 class Router extends BaseRouter
 {
+
   private $callback_404;
   private $callback_405;
   private string $uri_path_start;
-  private bool $allow_cors;
+  private $allow_cors;
+
   private Request $request;
   private Response $response;
-  private array $origins;
-  private array $middlewareStack = [];
 
-  public function __construct(string $uri_path_start, bool $allow_cors, array $origins = [])
+  private array $origins;
+
+  public function __construct($uri_path_start, $allow_cors, array $origins = [])
   {
-    parent::__construct();
     $this->request = new Request();
     $this->response = new Response();
-    $this->uri_path_start = $uri_path_start;
+    parent::__construct();
     $this->allow_cors = $allow_cors;
+    $this->uri_path_start = $uri_path_start;
     $this->origins = $origins;
   }
 
-  public function group(Blueprint $blueprint): self
+  public function group(Blueprint $blueprint): Router
   {
-    $this->handlers = array_merge($this->handlers, $blueprint->handlers);
-    if (!empty($blueprint->blueprint_middlewares)) {
-      $this->middlewareStack = array_merge($this->middlewareStack, $blueprint->blueprint_middlewares);
+    $route_names = [];
+    foreach ($blueprint->handlers as $index => $handler) {
+      if (isset($blueprint->blueprint_middlewares)) {
+        if (!isset($handler['name'])) {
+          $handler['name'] = rand(1, 20);
+        }
+        array_push($route_names, $handler['name']);
+      }
+      $this->handlers[$index] = $handler;
     }
+
+    if (isset($blueprint->middlewares)) {
+      foreach ($blueprint->middlewares as $index => $middleware) {
+        $this->middlewares[$index] = $middleware;
+      }
+    }
+
+    $blueprint_middlewares = [];
+
+    if (isset($blueprint->blueprint_middlewares)) {
+      foreach ($blueprint->blueprint_middlewares as $index => $middleware) {
+        $blueprint_middlewares[$index] = $middleware;
+        $blueprint_middlewares[$index]['routes'] = $route_names;
+      }
+
+      $this->middlewares = array_merge($blueprint_middlewares, $this->middlewares);
+    }
+
     return $this;
   }
 
-  public function middleware(callable $middleware, array|string $routes): self
+  private function setOrigins()
   {
-    $routes = (array)$routes;
-    $this->middlewareStack[] = [
-      'middleware' => $middleware,
-      'routes' => array_map(fn($route) => [
-        'path' => rtrim($route, '/'),
-        'pattern' => $this->convertToRegex($route)
-      ], $routes)
-    ];
-    return $this;
-  }
+    if (!empty($this->origins)) {
+      $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 
-  private function setOrigins(): void
-  {
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    if (!empty($this->origins) && in_array($origin, $this->origins)) {
-      header('Access-Control-Allow-Origin: ' . $origin);
+      if (in_array($origin, $this->origins)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+      }
     } else {
       header('Access-Control-Allow-Origin: *');
     }
   }
 
-  private function activate_cors(): void
+  private function activate_cors()
   {
     $this->setOrigins();
     header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
     header("Access-Control-Allow-Credentials: true");
     header('Content-Type: application/json');
 
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-      header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+
+    $method = $_SERVER['REQUEST_METHOD'];
+    if ($method == "OPTIONS") {
+      $this->setOrigins();
+      header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method,Access-Control-Request-Headers, Authorization");
       header("HTTP/1.1 200 OK");
-      exit;
+      die();
     }
   }
 
-  public function add_404_callback(callable $callback): void
-  {
-    $this->callback_404 = $callback;
-  }
-
-  public function add_405_callback(callable $callback): void
+  public function add_405_callback($callback)
   {
     $this->callback_405 = $callback;
   }
 
   private function get_request_path(): string
   {
-    $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $paths = array_filter(explode('/', $request_uri));
-    $start_index = array_search($this->uri_path_start, $paths);
-
-    if ($start_index === false) {
-      throw new Exception("Starting path not found", 404);
+    $request_uri = parse_url($_SERVER['REQUEST_URI']);
+    $paths = explode("/", $request_uri['path']);
+    $requestPath = "";
+    $start_index = null;
+    for ($i = 0; $i < count($paths); $i++) {
+      if ($paths[$i] === $this->uri_path_start) {
+        $start_index = $i + 1;
+        break;
+      }
     }
 
-    return '/' . implode('/', array_slice($paths, $start_index + 1));
-  }
-
-  private function invoke_callback(callable $callback, array $params = []): void
-  {
-    try {
-      call_user_func($callback, $this->request, $this->response, $params);
-    } catch (Exception $e) {
-      $this->response->send_error_response(500, "Callback error: " . $e->getMessage());
+    if (!$start_index) {
+      http_response_code(404);
+      echo json_encode([
+        'error' => true,
+        'message' => "starting path not found"
+      ]);
+      exit();
     }
+    for ($i = $start_index; $i < count($paths); $i++) {
+      $requestPath = $requestPath . "/" . $paths[$i];
+    }
+    return $requestPath;
   }
 
-  private function invoke_middleware_stack(callable $callback, array $params, string $request_path): void
+  public function add_404_callback($callback)
   {
-    $stack = array_filter($this->middlewareStack, function ($mw) use ($request_path) {
-      if (empty($mw['routes'])) {
-        return true; // Global middleware
-      }
-      foreach ($mw['routes'] as $route) {
-        if (preg_match($route['pattern'], $request_path)) {
-          return true;
-        }
-      }
-      return false;
-    });
+    $this->callback_404 = $callback;
+  }
 
-    $index = 0;
-    $next = function () use (&$index, $stack, $callback, $params, &$next) {
-      if ($index >= count($stack)) {
-        $this->invoke_callback($callback, $params);
-        return;
+  private function invoke_middleware($callback)
+  {
+    if (is_array($callback)) {
+      $classname = $callback[0];
+      $class = new $classname;
+
+      $method = $callback[1];
+      $callback = [$class, $method];
+    }
+
+    $response = new Response();
+    $request = new Request();
+    header('Content-Type: application/json');
+    call_user_func_array($callback, [$request, $response]);
+  }
+
+  private function invoke_callback($callback)
+  {
+    if (!$callback) {
+      header("HTTP/1.0 404 Not Found");
+      if (!empty($this->callback_404)) {
+        $callback = $this->callback_404;
+      } else {
+        $callback = function () {
+          http_response_code(404);
+          echo json_encode([
+            'error' => true,
+            'message' => "the requested url cannot be found"
+          ]);
+        };
       }
+    }
+    if (is_string($callback)) {
+      $parts = explode('::', $callback);
+      if (is_array($parts)) {
+        $classname = array_shift($parts);
+        $class = new $classname;
 
-      $middleware = $stack[array_keys($stack)[$index]]['middleware'];
-      $index++;
-
-      try {
-        call_user_func($middleware, $this->request, $this->response, $next);
-      } catch (Exception $e) {
-        $this->response->send_error_response(500, "Middleware error: " . $e->getMessage());
+        $method = array_shift($parts);
+        $callback = [$class, $method];
       }
-    };
+    }
 
-    $next();
+    $this->public_controller($callback);
+  }
+
+  public function public_controller($callback): void
+  {
+    header('Content-Type: application/json');
+    $callback($this->request, $this->response);
+  }
+
+
+  private function invoke_405()
+  {
+    if (!empty($this->callback_405)) {
+      return $this->callback_405;
+    } else {
+      return function () {
+        http_response_code(405);
+        echo json_encode([
+          'error' => true,
+          'message' => "method not allowed"
+        ]);
+      };
+    }
   }
 
   public function run(): void
   {
-    try {
-      if ($this->allow_cors) {
-        $this->activate_cors();
-      }
+    $request_path = $this->get_request_path();
+    $callback = null;
+    $method = $_SERVER['REQUEST_METHOD'];
 
-      $request_path = $this->get_request_path();
-      $method = $_SERVER['REQUEST_METHOD'];
-      $callback = null;
-      $params = [];
+    foreach ($this->handlers as $handler) {
+      if (is_array($handler['method'])) {
+        $methods = [];
 
-      foreach ($this->handlers as $handler) {
-        $methods = (array)$handler['method'];
-        if (preg_match($handler['pattern'], $request_path, $matches)) {
-          if (!in_array($method, $methods)) {
-            $callback = $this->callback_405 ?? fn() => $this->response->send_error_response(405, "Method not allowed");
-          } else {
-            $callback = $handler['callback'];
-            $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-          }
+        foreach ($handler['method'] as $handler_method) {
+          array_push($methods, strtoupper($handler_method));
+        }
+        $handler['method'] = $methods;
+
+        if (in_array($method, $handler['method']) && $handler['path'] === $request_path) {
+          $callback = $handler['callback'];
           break;
+        }
+
+        if (!in_array($method, $handler['method']) && $handler['path'] === $request_path) {
+          $callback = $this->invoke_405();
         }
       }
 
-      // If no route matched, use 404 callback
-      if ($callback === null) {
-        $callback = $this->callback_404 ?? fn() => $this->response->send_error_response(404, "Not found: " . $request_path);
+      if ($method === $handler['method'] && $handler['path'] === $request_path) {
+        $callback = $handler['callback'];
+        break;
       }
 
-      $this->invoke_middleware_stack($callback, $params, $request_path);
-    } catch (Exception $e) {
-      $this->response->send_error_response($e->getCode() ?: 500, $e->getMessage());
+      if ($handler['method'] !== $method && $handler['path'] === $request_path) {
+        $callback = $this->invoke_405();
+      }
     }
+
+    ($this->allow_cors && $this->activate_cors());
+
+    if (isset($this->middlewares)) {
+      foreach ($this->middlewares as $middleware) {
+        $routes = $middleware['routes'];
+        if (is_array($routes)) {
+          if (in_array($handler['name'], $middleware['routes'])) {
+            $this->invoke_middleware($middleware['middleware']);
+          }
+        } else {
+          if ($handler['name'] == $middleware['routes']) {
+            $this->invoke_middleware($middleware['middleware']);
+          }
+        }
+
+      }
+    }
+
+    $this->invoke_callback($callback);
   }
 }
