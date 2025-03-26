@@ -13,28 +13,27 @@ class Router extends BaseRouter
 {
   private $callback_404;
   private $callback_405;
-  private string $uri_path_start;
-  private bool   $allow_cors;
+  private bool $allow_cors;
   private Request $request;
   private Response $response;
-  private array  $origins;
+  private array $origins;
 
-  public function __construct(string $uri_path_start, bool $allow_cors, array $origins = [])
+  // Removed uri_path_start from constructor
+  public function __construct(bool $allow_cors, array $origins = [])
   {
-    $this->request       = new Request();
-    $this->response      = new Response();
+    $this->request    = new Request();
+    $this->response   = new Response();
     parent::__construct();
-    $this->allow_cors    = $allow_cors;
-    $this->uri_path_start = $uri_path_start;
-    $this->origins       = $origins;
+    $this->allow_cors = $allow_cors;
+    $this->origins    = $origins;
   }
 
   public function group(Blueprint $blueprint): Router
   {
     $route_names = [];
     foreach ($blueprint->handlers as $index => $handler) {
-      $handler['name']  = $handler['name'] ?? uniqid('route_');
-      $route_names[]    = $handler['name'];
+      $handler['name'] = $handler['name'] ?? uniqid('route_');
+      $route_names[]   = $handler['name'];
       $this->handlers[$index] = $handler;
     }
 
@@ -85,22 +84,11 @@ class Router extends BaseRouter
     $this->callback_405 = $callback;
   }
 
+  // Simplified get_request_path to use the full URI path
   private function get_request_path(): string
   {
     $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $paths       = array_filter(explode("/", $request_uri));
-    $paths       = array_values($paths);
-
-    $start_index = array_search($this->uri_path_start, $paths);
-    if ($start_index === false) {
-      throw new \RuntimeException("Starting path not found: {$this->uri_path_start}");
-    }
-
-    $requestPath = '';
-    for ($i = $start_index + 1; $i < count($paths); $i++) {
-      $requestPath .= "/" . $paths[$i];
-    }
-    return $requestPath ?: '/';
+    return $request_uri ?: '/';
   }
 
   public function add_404_callback(callable $callback): void
