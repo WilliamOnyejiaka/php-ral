@@ -37,9 +37,8 @@ class Blueprint extends BaseRouter
     private function add_blueprint_middlewares($middleware): void
     {
         $this->blueprint_middlewares[uniqid('bp_mw_')] = [
-            'routes' => [],
+            'routes'    => [],
             'middleware' => $middleware
         ];
     }
 }
-

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Lib;
@@ -8,17 +7,19 @@ ini_set("display_errors", 1);
 
 class BaseRouter
 {
-    protected array $handlers = [];
-    protected array $middlewares = [];
-    protected string $url_prefix = '';
+    protected array  $handlers     = [];
+    protected array  $middlewares  = [];
+    protected string $url_prefix   = '';
 
-    protected const METHOD_GET = "GET";
-    protected const METHOD_POST = "POST";
-    protected const METHOD_PUT = "PUT";
-    protected const METHOD_PATCH = "PATCH";
+    protected const METHOD_GET    = "GET";
+    protected const METHOD_POST   = "POST";
+    protected const METHOD_PUT    = "PUT";
+    protected const METHOD_PATCH  = "PATCH";
     protected const METHOD_DELETE = "DELETE";
 
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     public function get(string $path, $callback, string $name = null): BaseRouter
     {
@@ -62,24 +63,23 @@ class BaseRouter
             throw new \InvalidArgumentException('Callback must be callable, string, or array');
         }
 
-        $index = is_array($method) ? implode(",", $method) : $method;
+        $index    = is_array($method) ? implode(",", $method) : $method;
         $fullPath = $this->url_prefix . $path;
 
         if (isset($this->handlers[$index . $fullPath])) {
             throw new \RuntimeException("Route already exists: {$index} {$fullPath}");
         }
 
-        // Extract parameters and create regex pattern
         $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<$1>[^/]+)', $fullPath);
         $pattern = "#^" . $pattern . "$#";
 
         $this->handlers[$index . $fullPath] = [
-            'path' => $fullPath,
-            'method' => $method,
+            'path'     => $fullPath,
+            'method'   => $method,
             'callback' => $callback,
-            'name' => $name ?? uniqid('route_'),
-            'pattern' => $pattern,
-            'params' => $this->extractParams($fullPath)
+            'name'     => $name ?? uniqid('route_'),
+            'pattern'  => $pattern,
+            'params'   => $this->extractParams($fullPath)
         ];
     }
 
@@ -101,9 +101,9 @@ class BaseRouter
             throw new \InvalidArgumentException('Middleware must be callable, string, or array');
         }
 
-        $index = is_array($routes) ? implode(",", $routes) : $routes;
+        $index                    = is_array($routes) ? implode(",", $routes) : $routes;
         $this->middlewares[uniqid('mw_')] = [
-            'routes' => $routes,
+            'routes'    => $routes,
             'middleware' => $middleware
         ];
     }

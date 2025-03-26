@@ -1,18 +1,15 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Lib;
 
 class Request
 {
-    private $body;
+    public  $payload;
+    public  $params = []; // Added to store route parameters
 
-    public $payload;
-
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function json($key, $default = null)
     {
@@ -23,7 +20,6 @@ class Request
             return $default;
         }
     }
-
 
     public function args($key, $default = null)
     {
@@ -79,5 +75,11 @@ class Request
     public function get_header($key)
     {
         return (getallheaders())[$key] ?? null;
+    }
+
+    // Added method to access route parameters
+    public function param(string $key, $default = null)
+    {
+        return $this->params[$key] ?? $default;
     }
 }
