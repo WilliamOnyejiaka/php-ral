@@ -96,12 +96,9 @@ class Router extends BaseRouter
     return '/' . implode('/', array_slice($paths, $start_index + 1));
   }
 
-  private function invoke_callback(?callable $callback, array $params = []): void
+  private function invoke_callback(callable $callback, array $params = []): void
   {
     try {
-      if (!$callback) {
-        $callback = $this->callback_404 ?? fn() => $this->response->send_error_response(404, "Not found");
-      }
       call_user_func($callback, $this->request, $this->response, $params);
     } catch (Exception $e) {
       $this->response->send_error_response(500, "Callback error: " . $e->getMessage());
@@ -159,12 +156,17 @@ class Router extends BaseRouter
         if (preg_match($handler['pattern'], $request_path, $matches)) {
           if (!in_array($method, $methods)) {
             $callback = $this->callback_405 ?? fn() => $this->response->send_error_response(405, "Method not allowed");
-            break;
+          } else {
+            $callback = $handler['callback'];
+            $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
           }
-          $callback = $handler['callback'];
-          $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
           break;
         }
+      }
+
+      // If no route matched, use 404 callback
+      if ($callback === null) {
+        $callback = $this->callback_404 ?? fn() => $this->response->send_error_response(404, "Not found: " . $request_path);
       }
 
       $this->invoke_middleware_stack($callback, $params, $request_path);
