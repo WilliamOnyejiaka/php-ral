@@ -26,10 +26,10 @@ class Model
     protected function executionError($executed)
     {
         if (!$executed) {
-            $this->response->send_response(500, [
+            $this->response->json([
                 'error' => true,
                 'message' => "something went wrong"
-            ]);
+            ],500);
             exit();
         }
     }

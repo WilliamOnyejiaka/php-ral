@@ -11,7 +11,7 @@ class Request
 
     public function __construct() {}
 
-    public function json($key, $default = null)
+    public function body($key, $default = null)
     {
         $body = json_decode(file_get_contents("php://input"));
         if (!empty($body->{$key})) {
