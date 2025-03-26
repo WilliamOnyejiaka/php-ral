@@ -26,7 +26,7 @@ class Response
     return ((array() == $array) || array_keys($array) == range(0, count($array) - 1)) ? false : true;
   }
 
-  public function send_response(int $response_code, array $response_data)
+  public function json(array $response_data, int $response_code)
   {
     if (Response::check_array($response_data)) {
       http_response_code($response_code);
@@ -57,10 +57,10 @@ class Response
 
   public function send_error_response(int $error_code, $message)
   {
-    $this->send_response($error_code, [
+    $this->json([
       'error' => true,
       'message' => $message
-    ]);
+    ], $error_code);
   }
 
   public function get_header($key)

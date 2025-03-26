@@ -1,40 +1,45 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Lib;
-
-use Lib\BaseRouter;
 
 ini_set("display_errors", 1);
 
 class Blueprint extends BaseRouter
 {
-    public array $blueprint_middlewares;
+    public array $blueprint_middlewares = [];
 
     public function __construct(string $url_prefix)
     {
+        if (!preg_match('/^\/[a-zA-Z0-9\/]*$/', $url_prefix)) {
+            throw new \InvalidArgumentException('URL prefix must start with / and contain only alphanumeric characters and slashes');
+        }
         parent::__construct();
         $this->url_prefix = $url_prefix;
     }
 
     public function __get($property)
     {
-        if (property_exists($this, $property)) {
-            return $this->$property;
+        return property_exists($this, $property) ? $this->$property : null;
+    }
+
+    public function use(...$middlewares): void
+    {
+        foreach ($middlewares as $middleware) {
+            if (!is_callable($middleware) && !is_string($middleware) && !is_array($middleware)) {
+                throw new \InvalidArgumentException('Middleware must be callable, string, or array');
+            }
+            $this->add_blueprint_middlewares($middleware);
         }
-        return null;
     }
 
-    public function use ($middleware)
+    private function add_blueprint_middlewares($middleware): void
     {
-        $this->add_blueprint_middlewares($middleware);
-    }
-
-    private function add_blueprint_middlewares($middleware)
-    {
-        $this->blueprint_middlewares[rand(1, 20) . ""] = [
-            'routes' => "",
+        $this->blueprint_middlewares[uniqid('bp_mw_')] = [
+            'routes' => [],
             'middleware' => $middleware
         ];
     }
 }
+
